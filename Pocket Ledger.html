@@ -1,0 +1,720 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Pocket Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;700&family=Noto+Sans+Bengali:wght@400;500;700&family=Noto+Sans+Devanagari:wght@400;500;700&display=swap">
+<style>
+/* Layout: one ledger column. Big daily allowance on top, ruled figures below, bottom tab bar for Today / Month / Setup. Mirrors for Arabic. */
+:root{
+  --paper:#F1F3F6; --card:#FFFFFF; --ink:#0F1B2D; --muted:#5B6778; --line:#D3D9E2;
+  --accent:#1F3A5F; --on-accent:#F4F7FB; --accent-soft:#DCE4EF;
+  --warn:#9B2C2C; --on-warn:#FFF5F5; --warn-soft:#F4DADA;
+  --f-display:'IBM Plex Sans','Noto Sans Arabic','Noto Sans Bengali','Noto Sans Devanagari','Helvetica Neue',Arial,sans-serif;
+  --f-body:'IBM Plex Sans','Noto Sans Arabic','Noto Sans Bengali','Noto Sans Devanagari',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-num:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0E141C; --card:#151D28; --ink:#E6EBF2; --muted:#94A1B3; --line:#27313F;
+    --accent:#7FA6D9; --on-accent:#0B1522; --accent-soft:#1C2B40;
+    --warn:#E58B8B; --on-warn:#2A0E0E; --warn-soft:#3A1C1C;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0E141C; --card:#151D28; --ink:#E6EBF2; --muted:#94A1B3; --line:#27313F;
+  --accent:#7FA6D9; --on-accent:#0B1522; --accent-soft:#1C2B40;
+  --warn:#E58B8B; --on-warn:#2A0E0E; --warn-soft:#3A1C1C;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font:15px/1.55 var(--f-body);padding-inline:16px;padding-block:16px 0}
+.app{max-width:640px;margin-inline:auto;padding-bottom:96px;transition:opacity .2s}
+.app.loading main{opacity:.45;pointer-events:none}
+h1,h2,h3,h4,p{margin:0}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num,.big,dd,td.n,th.n{font-variant-numeric:tabular-nums}
+
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.brand{font:700 18px/1.2 var(--f-display);letter-spacing:-.01em}
+.tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pill{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 10px;white-space:nowrap}
+.pill:empty{display:none}
+.langsel{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:14px}
+
+.banner{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--accent-soft);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:14px}
+.banner button{background:var(--accent);color:var(--on-accent);border:0;border-radius:8px;padding:7px 14px;font-weight:700}
+
+.hero{background:var(--accent);color:var(--on-accent);border-radius:16px;padding:20px 20px 18px;margin-bottom:20px}
+.hero.over{background:var(--warn);color:var(--on-warn)}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;opacity:.85}
+.big{direction:ltr;font:700 clamp(48px,16vw,76px)/1.05 var(--f-display);letter-spacing:-.03em;margin-top:6px}
+:root[dir="rtl"] .big{text-align:right}
+.big .cur{font:500 15px var(--f-num);letter-spacing:0;margin-right:8px;opacity:.8}
+.meter{height:6px;border-radius:3px;background:rgba(255,255,255,.28);margin:14px 0 10px;overflow:hidden}
+.hero.over .meter{background:rgba(0,0,0,.2)}
+.meter i{display:block;height:100%;background:currentColor;border-radius:3px}
+.hero .sub{font-size:14px;opacity:.95}
+
+.trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0 0 24px}
+.trio div{padding:2px 12px;border-inline-start:1px solid var(--line);min-width:0}
+.trio div:first-child{padding-inline-start:0;border-inline-start:0}
+.trio dt{font-size:12px;color:var(--muted)}
+.trio dd{margin:2px 0 0;font:500 17px var(--f-num);overflow-wrap:anywhere}
+
+.panel{display:flex;flex-direction:column;gap:0}
+.panel[hidden]{display:none}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:24px}
+.card h2{font:700 18px var(--f-display);margin-bottom:12px}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px;margin-bottom:14px}
+.seg button{flex:1;border:0;background:transparent;border-radius:7px;padding:7px 10px;font-weight:500}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;min-width:0}
+.field[hidden]{display:none}
+.field label,.label{font-size:13px;color:var(--muted);font-weight:500}
+.input{width:100%;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:16px;min-width:0}
+.amount{display:flex;align-items:center;gap:10px;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:0 12px}
+.amount span{font:500 14px var(--f-num);color:var(--muted)}
+.amount input{border:0;background:transparent;font:500 26px var(--f-num);padding:8px 0;width:100%;min-width:0;outline:none;direction:ltr;text-align:start}
+.amount:focus-within{outline:2px solid var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{border:1px solid var(--line);background:transparent;border-radius:999px;padding:5px 12px;font-size:14px}
+.chips button[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);font-weight:700}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:420px){.row2{grid-template-columns:1fr}}
+.primary{width:100%;background:var(--accent);color:var(--on-accent);border:0;border-radius:10px;padding:12px;font-weight:700;font-size:16px}
+.hint{font-size:13px;color:var(--muted);margin-top:12px}
+
+.section-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:0 0 8px}
+.section-h h3{font:700 16px var(--f-display)}
+.section-h span{font-size:13px;color:var(--muted)}
+.list{list-style:none;margin:0 0 24px;padding:0;border-top:1px solid var(--line)}
+.list li{display:grid;grid-template-columns:92px minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.list .cat{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;overflow-wrap:anywhere}
+.list .note{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list .amt{font:500 15px var(--f-num);direction:ltr}
+.list .amt.pos{color:var(--accent)}
+.list .del{border:0;background:transparent;color:var(--muted);font-size:13px;min-width:28px;min-height:28px;border-radius:6px;padding:0 6px}
+.list .del.armed{background:var(--warn-soft);color:var(--warn);font-weight:700}
+.list li.nodel{grid-template-columns:92px minmax(0,1fr) auto}
+:root:not([lang="en"]) .eyebrow,:root:not([lang="en"]) .list .cat{letter-spacing:0;text-transform:none}
+:root:not([lang="en"]) .list .cat{font-size:12px}
+.dayh{font-size:13px;font-weight:700;margin:16px 0 6px;color:var(--muted)}
+.empty{color:var(--muted);padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-bottom:24px;font-size:14px}
+
+.mnav{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.mnav h2{font:700 24px var(--f-display);letter-spacing:-.01em}
+.mnav button{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--card);font-size:22px;line-height:1}
+.mnav button:disabled{opacity:.35;cursor:default}
+:root[dir="rtl"] .mnav button{transform:scaleX(-1)}
+.ledger{margin:0 0 28px;border-top:1px solid var(--line)}
+.ledger div{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--line)}
+.ledger dt{color:var(--muted)}
+.ledger dd{margin:0;font:500 15px var(--f-num);text-align:end;flex-shrink:0}
+.ledger .good{color:var(--accent)}
+.ledger .bad{color:var(--warn)}
+
+.plot{position:relative;height:140px;display:flex;gap:2px;align-items:flex-end;margin:6px 0 24px;border-bottom:1px solid var(--line)}
+.col{position:relative;flex:1;min-width:0;height:100%;display:flex;align-items:flex-end}
+.col i{display:block;width:100%;background:var(--accent);border-radius:2px 2px 0 0;opacity:.85}
+.col.over i{background:var(--warn);opacity:1}
+.col.empty i{height:2px!important;background:var(--line);opacity:1}
+.col.today i{outline:2px solid var(--ink);outline-offset:1px}
+.col b{position:absolute;left:50%;bottom:-19px;transform:translateX(-50%);font:400 10px var(--f-num);color:var(--muted)}
+.limit{position:absolute;left:0;right:0;border-top:1px dashed var(--ink);opacity:.7;pointer-events:none}
+.limit span{position:absolute;inset-inline-end:0;bottom:2px;font-size:11px;background:var(--paper);padding:0 4px;color:var(--muted)}
+.cats{list-style:none;margin:0 0 28px;padding:0;display:flex;flex-direction:column;gap:12px}
+.cats .r{display:flex;justify-content:space-between;gap:12px;font-size:14px;margin-bottom:4px}
+.cats .r .n{font:500 14px var(--f-num)}
+.cats .r small{color:var(--muted);margin-inline-start:6px}
+.track{height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+.track i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.scroll{overflow-x:auto;margin-bottom:24px}
+table{border-collapse:collapse;width:100%;min-width:420px}
+th,td{text-align:end;padding:10px 8px;border-bottom:1px solid var(--line);font-size:14px}
+th{font-size:12px;color:var(--muted);font-weight:500;border-top:1px solid var(--line)}
+th:first-child,td:first-child{text-align:start;padding-inline-start:0}
+td.n{font-family:var(--f-num)}
+td button{background:none;border:0;padding:0;font-weight:700;text-align:start;text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--line)}
+
+.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:center;padding:6px 16px calc(6px + env(safe-area-inset-bottom,0px));z-index:5}
+.tabs div{display:flex;width:100%;max-width:640px;gap:6px}
+.tabs button{flex:1;border:0;background:transparent;border-radius:10px;padding:10px 4px;font-weight:700;font-size:14px;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:var(--accent-soft);color:var(--ink)}
+.toast{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:9px 16px;border-radius:999px;font-size:14px;z-index:6;max-width:calc(100vw - 32px);text-align:center}
+.toast[hidden]{display:none}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<div class="app loading" id="app">
+  <header class="top">
+    <div class="brand" data-i="brand">Pocket Ledger</div>
+    <div class="tools">
+      <div class="pill" id="storePill"></div>
+      <select class="langsel" id="lang" data-ia="language" aria-label="Language">
+        <option value="en">English</option>
+        <option value="ar">العربية</option>
+        <option value="bn">বাংলা</option>
+        <option value="ne">नेपाली</option>
+        <option value="hi">हिन्दी</option>
+      </select>
+    </div>
+  </header>
+
+  <div class="banner" id="banner" hidden>
+    <span data-i="banner"></span>
+    <button type="button" data-goto="setup" data-i="setUp"></button>
+  </div>
+
+  <main>
+    <section class="panel" id="p-today">
+      <div id="hero"></div>
+      <dl class="trio" id="trio"></dl>
+
+      <form class="card" id="addForm" autocomplete="off">
+        <h2 data-i="addEntry"></h2>
+        <div class="seg" role="group" data-ia="entryType" aria-label="Entry type">
+          <button type="button" data-type="expense" data-i="expense" aria-pressed="true"></button>
+          <button type="button" data-type="income" data-i="extraIncome" aria-pressed="false"></button>
+        </div>
+        <div class="field">
+          <label for="amt" data-i="amount"></label>
+          <div class="amount"><span id="curTag">QAR</span><input id="amt" inputmode="decimal" placeholder="0.00" data-ia="amount" aria-label="Amount"></div>
+        </div>
+        <div class="field" id="catField">
+          <span class="label" id="catLabel" data-i="category"></span>
+          <div class="chips" id="chips" role="group" aria-labelledby="catLabel"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label for="note" data-i="note"></label><input class="input" id="note" maxlength="80" data-ip="notePh" dir="auto"></div>
+          <div class="field"><label for="dt" data-i="date"></label><input class="input" id="dt" type="date"></div>
+        </div>
+        <button class="primary" type="submit" data-i="add"></button>
+      </form>
+
+      <div class="section-h"><h3 data-i="today"></h3><span id="todayTotal"></span></div>
+      <div id="todayList"></div>
+    </section>
+
+    <section class="panel" id="p-month" hidden>
+      <div class="mnav" id="monthNav"></div>
+      <dl class="ledger" id="ledger"></dl>
+
+      <div class="section-h"><h3 data-i="spendByDay"></h3><span data-i="evenLine"></span></div>
+      <div id="dailyChart"></div>
+
+      <div class="section-h"><h3 data-i="whereWent"></h3></div>
+      <div id="catChart"></div>
+
+      <div class="section-h"><h3 data-i="entries"></h3><span id="entryCount"></span></div>
+      <div id="monthList"></div>
+
+      <div class="section-h"><h3 data-i="allMonths"></h3></div>
+      <div id="history"></div>
+    </section>
+
+    <section class="panel" id="p-setup" hidden>
+      <form class="card" id="setForm" autocomplete="off">
+        <h2 data-i="yourSetup"></h2>
+        <div class="field"><label for="salary" data-i="monthlySalary"></label><input class="input" id="salary" inputmode="decimal" placeholder="6500"></div>
+        <div class="field"><label for="goal" data-i="savingsGoal"></label><input class="input" id="goal" inputmode="decimal" placeholder="1500"></div>
+        <div class="field"><label for="cur" data-i="currency"></label><select class="input" id="cur"></select></div>
+        <button class="primary" type="submit" data-i="save"></button>
+        <p class="hint" data-i="hint"></p>
+      </form>
+    </section>
+  </main>
+
+  <nav class="tabs" aria-label="Sections"><div>
+    <button type="button" data-tab="today" data-i="tabToday" aria-selected="true"></button>
+    <button type="button" data-tab="month" data-i="tabMonth" aria-selected="false"></button>
+    <button type="button" data-tab="setup" data-i="tabSetup" aria-selected="false"></button>
+  </div></nav>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+(function(){
+'use strict';
+var CATS=['Food','Transport','Room rent','WiFi','Bills','Shopping','Health','Family','Friends','Relatives','Other'];
+var SENT=['Family','Friends','Relatives'];
+var CURS=['QAR','AED','SAR','INR','PKR','BDT','NPR','PHP','USD','EUR','GBP'];
+var LS='pocket-ledger.v1',LSL='pocket-ledger.lang';
+var LOC={en:'en-GB',ar:'ar',bn:'bn-BD',ne:'ne-NP',hi:'hi-IN'};
+
+/* ---------- translations ---------- */
+var DICT={
+en:{brand:'Pocket Ledger',synced:'Synced',local:'This device only',banner:'These are example figures, not yours. Enter your salary to start.',setUp:'Set up',
+ leftToday:'Left to spend today',overToday:'Over today’s limit',subGoal:'Your savings goal uses up the rest of this month’s income. Lower the goal or spend less.',
+ subSpent:'Spent {a} of {b} today',subTomorrow:' · Tomorrow’s limit {a}',
+ spentMonth:'Spent this month',savedSoFar:'Saved so far',dayOfSalary:'One day of salary',
+ addEntry:'Add entry',expense:'Expense',extraIncome:'Extra income',amount:'Amount',category:'Category',note:'Note',notePh:'Name or detail, e.g. Mother, Lunch',date:'Date',add:'Add',
+ today:'Today',spentTot:'{a} spent',emptyToday:'Nothing logged today. Add your first expense above.',
+ spendByDay:'Spending by day',evenLine:'Dashed line: even daily budget',whereWent:'Where it went',entries:'Entries',entry1:'1 entry',entryN:'{n} entries',allMonths:'All months',
+ noSpend:'No spending logged this month yet.',noEntries:'No entries this month.',
+ salary:'Salary',otherIncome:'Other income',spent:'Spent',sent:'Sent to family, friends, relatives',saved:'Saved',goal:'Savings goal {a}',avg:'Average spend per day',proj:'Projected saved by month end',
+ notSet:'Not set',met:'Met',metSoFar:'Met so far',toGo:'{a} to go',month:'Month',income:'Income',
+ yourSetup:'Your setup',monthlySalary:'Monthly salary',savingsGoal:'Savings goal per month',currency:'Currency',save:'Save',
+ hint:'Daily limit = (salary + extra income − savings goal − spent so far) ÷ days left this month. Spend less today and tomorrow’s limit goes up.',
+ tabToday:'Today',tabMonth:'Month',tabSetup:'Setup',
+ loading:'Still loading, try again in a moment.',setSalaryFirst:'Set your monthly salary first.',enterAmount:'Enter an amount above zero.',incomeAdded:'Income added',expenseAdded:'Expense added',
+ enterSalary:'Enter your monthly salary.',goalZero:'Savings goal must be zero or more.',goalLess:'Savings goal should be less than your salary.',savedToast:'Saved',deleted:'Deleted',deleteQ:'Delete?',
+ saveFail:'Could not save. Check your connection.',loadSettingsFail:'Could not load your settings.',loadEntriesFail:'Could not load your entries.',
+ prevMonth:'Previous month',nextMonth:'Next month',delEntry:'Delete entry',entryType:'Entry type',chartAria:'Spending per day this month',language:'Language',
+ 'cat.Food':'Food','cat.Transport':'Transport','cat.Room rent':'Room rent','cat.WiFi':'WiFi','cat.Bills':'Bills','cat.Shopping':'Shopping','cat.Health':'Health','cat.Family':'Family','cat.Friends':'Friends','cat.Relatives':'Relatives','cat.Other':'Other','cat.Income':'Income','cat.Rent':'Rent','cat.Fun':'Fun'},
+ar:{brand:'دفتر الجيب',synced:'متزامن',local:'على هذا الجهاز فقط',banner:'هذه أرقام تجريبية وليست أرقامك. أدخل راتبك للبدء.',setUp:'إعداد',
+ leftToday:'المتبقي للصرف اليوم',overToday:'تجاوزت حد اليوم',subGoal:'هدف الادخار يستهلك باقي دخل هذا الشهر. خفّض الهدف أو قلّل الإنفاق.',
+ subSpent:'أنفقت {a} من {b} اليوم',subTomorrow:' · حد الغد {a}',
+ spentMonth:'المصروف هذا الشهر',savedSoFar:'المدّخر حتى الآن',dayOfSalary:'أجر يوم واحد',
+ addEntry:'إضافة بند',expense:'مصروف',extraIncome:'دخل إضافي',amount:'المبلغ',category:'الفئة',note:'ملاحظة',notePh:'الاسم أو التفاصيل، مثل: أمي، غداء',date:'التاريخ',add:'إضافة',
+ today:'اليوم',spentTot:'أُنفق {a}',emptyToday:'لا شيء مسجّل اليوم. أضف أول مصروف أعلاه.',
+ spendByDay:'الإنفاق حسب اليوم',evenLine:'الخط المتقطع: الميزانية اليومية المتساوية',whereWent:'أين ذهبت الأموال',entries:'البنود',entry1:'بند واحد',entryN:'{n} بنود',allMonths:'كل الأشهر',
+ noSpend:'لا يوجد إنفاق مسجّل هذا الشهر بعد.',noEntries:'لا توجد بنود هذا الشهر.',
+ salary:'الراتب',otherIncome:'دخل آخر',spent:'المصروف',sent:'المرسل للعائلة والأصدقاء والأقارب',saved:'المدّخر',goal:'هدف الادخار {a}',avg:'متوسط الإنفاق اليومي',proj:'المدّخر المتوقع بنهاية الشهر',
+ notSet:'غير محدد',met:'تحقّق',metSoFar:'تحقّق حتى الآن',toGo:'متبقٍ {a}',month:'الشهر',income:'الدخل',
+ yourSetup:'إعداداتك',monthlySalary:'الراتب الشهري',savingsGoal:'هدف الادخار شهريًا',currency:'العملة',save:'حفظ',
+ hint:'الحد اليومي = (الراتب + الدخل الإضافي − هدف الادخار − المصروف حتى الآن) ÷ الأيام المتبقية من الشهر. إذا أنفقت أقل اليوم يرتفع حد الغد.',
+ tabToday:'اليوم',tabMonth:'الشهر',tabSetup:'الإعداد',
+ loading:'جارٍ التحميل، حاول بعد لحظات.',setSalaryFirst:'أدخل راتبك الشهري أولًا.',enterAmount:'أدخل مبلغًا أكبر من الصفر.',incomeAdded:'تمت إضافة الدخل',expenseAdded:'تمت إضافة المصروف',
+ enterSalary:'أدخل راتبك الشهري.',goalZero:'يجب أن يكون هدف الادخار صفرًا أو أكثر.',goalLess:'يجب أن يكون هدف الادخار أقل من الراتب.',savedToast:'تم الحفظ',deleted:'تم الحذف',deleteQ:'حذف؟',
+ saveFail:'تعذّر الحفظ. تحقق من الاتصال.',loadSettingsFail:'تعذّر تحميل إعداداتك.',loadEntriesFail:'تعذّر تحميل بنودك.',
+ prevMonth:'الشهر السابق',nextMonth:'الشهر التالي',delEntry:'حذف البند',entryType:'نوع البند',chartAria:'الإنفاق اليومي لهذا الشهر',language:'اللغة',
+ 'cat.Food':'الطعام','cat.Transport':'المواصلات','cat.Room rent':'إيجار الغرفة','cat.WiFi':'الواي فاي','cat.Bills':'الفواتير','cat.Shopping':'التسوق','cat.Health':'الصحة','cat.Family':'العائلة','cat.Friends':'الأصدقاء','cat.Relatives':'الأقارب','cat.Other':'أخرى','cat.Income':'دخل','cat.Rent':'إيجار','cat.Fun':'ترفيه'},
+bn:{brand:'পকেট খাতা',synced:'সিঙ্ক হয়েছে',local:'শুধু এই ডিভাইসে',banner:'এগুলো উদাহরণের সংখ্যা, আপনার নয়। শুরু করতে আপনার বেতন লিখুন।',setUp:'সেটআপ',
+ leftToday:'আজ খরচের জন্য বাকি',overToday:'আজকের সীমা ছাড়িয়ে গেছে',subGoal:'আপনার সঞ্চয়ের লক্ষ্য এই মাসের বাকি আয় শেষ করে দেয়। লক্ষ্য কমান বা খরচ কমান।',
+ subSpent:'আজ {b}-এর মধ্যে {a} খরচ হয়েছে',subTomorrow:' · আগামীকালের সীমা {a}',
+ spentMonth:'এই মাসের খরচ',savedSoFar:'এখন পর্যন্ত সঞ্চয়',dayOfSalary:'এক দিনের বেতন',
+ addEntry:'এন্ট্রি যোগ করুন',expense:'খরচ',extraIncome:'অতিরিক্ত আয়',amount:'পরিমাণ',category:'ধরন',note:'নোট',notePh:'নাম বা বিবরণ, যেমন মা, দুপুরের খাবার',date:'তারিখ',add:'যোগ করুন',
+ today:'আজ',spentTot:'{a} খরচ',emptyToday:'আজ কিছু লেখা হয়নি। উপরে আপনার প্রথম খরচ যোগ করুন।',
+ spendByDay:'দিন অনুযায়ী খরচ',evenLine:'ড্যাশ রেখা: সমান দৈনিক বাজেট',whereWent:'টাকা কোথায় গেল',entries:'এন্ট্রি',entry1:'1টি এন্ট্রি',entryN:'{n}টি এন্ট্রি',allMonths:'সব মাস',
+ noSpend:'এই মাসে এখনো কোনো খরচ লেখা হয়নি।',noEntries:'এই মাসে কোনো এন্ট্রি নেই।',
+ salary:'বেতন',otherIncome:'অন্যান্য আয়',spent:'খরচ',sent:'পরিবার, বন্ধু, আত্মীয়কে পাঠানো',saved:'সঞ্চয়',goal:'সঞ্চয়ের লক্ষ্য {a}',avg:'দৈনিক গড় খরচ',proj:'মাস শেষে সম্ভাব্য সঞ্চয়',
+ notSet:'ঠিক করা নেই',met:'পূর্ণ হয়েছে',metSoFar:'এখন পর্যন্ত পূর্ণ',toGo:'{a} বাকি',month:'মাস',income:'আয়',
+ yourSetup:'আপনার সেটআপ',monthlySalary:'মাসিক বেতন',savingsGoal:'মাসিক সঞ্চয়ের লক্ষ্য',currency:'মুদ্রা',save:'সংরক্ষণ করুন',
+ hint:'দৈনিক সীমা = (বেতন + অতিরিক্ত আয় − সঞ্চয়ের লক্ষ্য − এখন পর্যন্ত খরচ) ÷ মাসের বাকি দিন। আজ কম খরচ করলে আগামীকালের সীমা বাড়ে।',
+ tabToday:'আজ',tabMonth:'মাস',tabSetup:'সেটআপ',
+ loading:'লোড হচ্ছে, একটু পরে আবার চেষ্টা করুন।',setSalaryFirst:'আগে আপনার মাসিক বেতন লিখুন।',enterAmount:'শূন্যের বেশি পরিমাণ লিখুন।',incomeAdded:'আয় যোগ হয়েছে',expenseAdded:'খরচ যোগ হয়েছে',
+ enterSalary:'আপনার মাসিক বেতন লিখুন।',goalZero:'সঞ্চয়ের লক্ষ্য শূন্য বা তার বেশি হতে হবে।',goalLess:'সঞ্চয়ের লক্ষ্য আপনার বেতনের চেয়ে কম হতে হবে।',savedToast:'সংরক্ষিত হয়েছে',deleted:'মুছে ফেলা হয়েছে',deleteQ:'মুছবেন?',
+ saveFail:'সংরক্ষণ করা যায়নি। সংযোগ পরীক্ষা করুন।',loadSettingsFail:'আপনার সেটিংস লোড করা যায়নি।',loadEntriesFail:'আপনার এন্ট্রি লোড করা যায়নি।',
+ prevMonth:'আগের মাস',nextMonth:'পরের মাস',delEntry:'এন্ট্রি মুছুন',entryType:'এন্ট্রির ধরন',chartAria:'এই মাসের দৈনিক খরচ',language:'ভাষা',
+ 'cat.Food':'খাবার','cat.Transport':'যাতায়াত','cat.Room rent':'ঘরভাড়া','cat.WiFi':'ওয়াইফাই','cat.Bills':'বিল','cat.Shopping':'কেনাকাটা','cat.Health':'স্বাস্থ্য','cat.Family':'পরিবার','cat.Friends':'বন্ধু','cat.Relatives':'আত্মীয়','cat.Other':'অন্যান্য','cat.Income':'আয়','cat.Rent':'ভাড়া','cat.Fun':'বিনোদন'},
+ne:{brand:'पकेट खाता',synced:'सिङ्क भयो',local:'यही उपकरणमा मात्र',banner:'यी उदाहरणका अंकहरू हुन्, तपाईंका होइनन्। सुरु गर्न आफ्नो तलब हाल्नुहोस्।',setUp:'सेटअप',
+ leftToday:'आज खर्च गर्न बाँकी',overToday:'आजको सीमा नाघ्यो',subGoal:'तपाईंको बचत लक्ष्यले यो महिनाको बाँकी आम्दानी सकाउँछ। लक्ष्य घटाउनुहोस् वा कम खर्च गर्नुहोस्।',
+ subSpent:'आज {b} मध्ये {a} खर्च भयो',subTomorrow:' · भोलिको सीमा {a}',
+ spentMonth:'यो महिनाको खर्च',savedSoFar:'अहिलेसम्मको बचत',dayOfSalary:'एक दिनको तलब',
+ addEntry:'विवरण थप्नुहोस्',expense:'खर्च',extraIncome:'अतिरिक्त आम्दानी',amount:'रकम',category:'वर्ग',note:'टिप्पणी',notePh:'नाम वा विवरण, जस्तै आमा, खाजा',date:'मिति',add:'थप्नुहोस्',
+ today:'आज',spentTot:'{a} खर्च',emptyToday:'आज केही दर्ता गरिएको छैन। माथि आफ्नो पहिलो खर्च थप्नुहोस्।',
+ spendByDay:'दिनअनुसार खर्च',evenLine:'थोप्लाको रेखा: बराबर दैनिक बजेट',whereWent:'पैसा कहाँ गयो',entries:'विवरणहरू',entry1:'1 विवरण',entryN:'{n} विवरण',allMonths:'सबै महिना',
+ noSpend:'यो महिना अहिलेसम्म कुनै खर्च दर्ता भएको छैन।',noEntries:'यो महिना कुनै विवरण छैन।',
+ salary:'तलब',otherIncome:'अन्य आम्दानी',spent:'खर्च',sent:'परिवार, साथी, आफन्तलाई पठाइएको',saved:'बचत',goal:'बचत लक्ष्य {a}',avg:'दैनिक औसत खर्च',proj:'महिनाको अन्त्यसम्म अनुमानित बचत',
+ notSet:'तोकिएको छैन',met:'पूरा भयो',metSoFar:'अहिलेसम्म पूरा',toGo:'{a} बाँकी',month:'महिना',income:'आम्दानी',
+ yourSetup:'तपाईंको सेटअप',monthlySalary:'मासिक तलब',savingsGoal:'मासिक बचत लक्ष्य',currency:'मुद्रा',save:'सुरक्षित गर्नुहोस्',
+ hint:'दैनिक सीमा = (तलब + अतिरिक्त आम्दानी − बचत लक्ष्य − अहिलेसम्मको खर्च) ÷ महिनामा बाँकी दिन। आज कम खर्च गर्नुभयो भने भोलिको सीमा बढ्छ।',
+ tabToday:'आज',tabMonth:'महिना',tabSetup:'सेटअप',
+ loading:'लोड हुँदैछ, केही क्षणपछि फेरि प्रयास गर्नुहोस्।',setSalaryFirst:'पहिले आफ्नो मासिक तलब हाल्नुहोस्।',enterAmount:'शून्यभन्दा बढी रकम हाल्नुहोस्।',incomeAdded:'आम्दानी थपियो',expenseAdded:'खर्च थपियो',
+ enterSalary:'आफ्नो मासिक तलब हाल्नुहोस्।',goalZero:'बचत लक्ष्य शून्य वा सोभन्दा बढी हुनुपर्छ।',goalLess:'बचत लक्ष्य तपाईंको तलबभन्दा कम हुनुपर्छ।',savedToast:'सुरक्षित गरियो',deleted:'हटाइयो',deleteQ:'हटाउने?',
+ saveFail:'सुरक्षित गर्न सकिएन। इन्टरनेट जाँच्नुहोस्।',loadSettingsFail:'तपाईंको सेटिङ लोड गर्न सकिएन।',loadEntriesFail:'तपाईंका विवरण लोड गर्न सकिएन।',
+ prevMonth:'अघिल्लो महिना',nextMonth:'अर्को महिना',delEntry:'विवरण हटाउनुहोस्',entryType:'विवरणको प्रकार',chartAria:'यो महिनाको दैनिक खर्च',language:'भाषा',
+ 'cat.Food':'खाना','cat.Transport':'यातायात','cat.Room rent':'कोठा भाडा','cat.WiFi':'वाइफाइ','cat.Bills':'बिल','cat.Shopping':'किनमेल','cat.Health':'स्वास्थ्य','cat.Family':'परिवार','cat.Friends':'साथीभाइ','cat.Relatives':'आफन्त','cat.Other':'अन्य','cat.Income':'आम्दानी','cat.Rent':'भाडा','cat.Fun':'मनोरञ्जन'},
+hi:{brand:'पॉकेट खाता',synced:'सिंक हो गया',local:'केवल इस डिवाइस पर',banner:'ये उदाहरण के आँकड़े हैं, आपके नहीं। शुरू करने के लिए अपना वेतन दर्ज करें।',setUp:'सेटअप',
+ leftToday:'आज खर्च के लिए बचा',overToday:'आज की सीमा पार हो गई',subGoal:'आपका बचत लक्ष्य इस महीने की बाकी आय खा जाता है। लक्ष्य घटाएँ या खर्च कम करें।',
+ subSpent:'आज {b} में से {a} खर्च हुआ',subTomorrow:' · कल की सीमा {a}',
+ spentMonth:'इस महीने का खर्च',savedSoFar:'अब तक की बचत',dayOfSalary:'एक दिन का वेतन',
+ addEntry:'प्रविष्टि जोड़ें',expense:'खर्च',extraIncome:'अतिरिक्त आय',amount:'राशि',category:'श्रेणी',note:'टिप्पणी',notePh:'नाम या विवरण, जैसे माँ, दोपहर का खाना',date:'तारीख',add:'जोड़ें',
+ today:'आज',spentTot:'{a} खर्च',emptyToday:'आज कुछ दर्ज नहीं है। ऊपर अपना पहला खर्च जोड़ें।',
+ spendByDay:'दिन के हिसाब से खर्च',evenLine:'बिंदीदार रेखा: बराबर दैनिक बजट',whereWent:'पैसा कहाँ गया',entries:'प्रविष्टियाँ',entry1:'1 प्रविष्टि',entryN:'{n} प्रविष्टियाँ',allMonths:'सभी महीने',
+ noSpend:'इस महीने अभी तक कोई खर्च दर्ज नहीं है।',noEntries:'इस महीने कोई प्रविष्टि नहीं है।',
+ salary:'वेतन',otherIncome:'अन्य आय',spent:'खर्च',sent:'परिवार, मित्रों, रिश्तेदारों को भेजा',saved:'बचत',goal:'बचत लक्ष्य {a}',avg:'प्रतिदिन औसत खर्च',proj:'महीने के अंत तक अनुमानित बचत',
+ notSet:'तय नहीं',met:'पूरा हुआ',metSoFar:'अब तक पूरा',toGo:'{a} बाकी',month:'महीना',income:'आय',
+ yourSetup:'आपकी सेटिंग',monthlySalary:'मासिक वेतन',savingsGoal:'मासिक बचत लक्ष्य',currency:'मुद्रा',save:'सहेजें',
+ hint:'दैनिक सीमा = (वेतन + अतिरिक्त आय − बचत लक्ष्य − अब तक का खर्च) ÷ महीने के बचे दिन। आज कम खर्च करेंगे तो कल की सीमा बढ़ जाएगी।',
+ tabToday:'आज',tabMonth:'महीना',tabSetup:'सेटअप',
+ loading:'लोड हो रहा है, थोड़ी देर में फिर कोशिश करें।',setSalaryFirst:'पहले अपना मासिक वेतन दर्ज करें।',enterAmount:'शून्य से अधिक राशि दर्ज करें।',incomeAdded:'आय जोड़ी गई',expenseAdded:'खर्च जोड़ा गया',
+ enterSalary:'अपना मासिक वेतन दर्ज करें।',goalZero:'बचत लक्ष्य शून्य या उससे अधिक होना चाहिए।',goalLess:'बचत लक्ष्य आपके वेतन से कम होना चाहिए।',savedToast:'सहेज लिया गया',deleted:'हटा दिया गया',deleteQ:'हटाएँ?',
+ saveFail:'सहेजा नहीं जा सका। कनेक्शन जाँचें।',loadSettingsFail:'आपकी सेटिंग लोड नहीं हो सकी।',loadEntriesFail:'आपकी प्रविष्टियाँ लोड नहीं हो सकीं।',
+ prevMonth:'पिछला महीना',nextMonth:'अगला महीना',delEntry:'प्रविष्टि हटाएँ',entryType:'प्रविष्टि का प्रकार',chartAria:'इस महीने का दैनिक खर्च',language:'भाषा',
+ 'cat.Food':'खाना','cat.Transport':'यातायात','cat.Room rent':'कमरे का किराया','cat.WiFi':'वाई-फ़ाई','cat.Bills':'बिल','cat.Shopping':'खरीदारी','cat.Health':'स्वास्थ्य','cat.Family':'परिवार','cat.Friends':'मित्र','cat.Relatives':'रिश्तेदार','cat.Other':'अन्य','cat.Income':'आय','cat.Rent':'किराया','cat.Fun':'मनोरंजन'}
+};
+
+var $=function(s){return document.querySelector(s)};
+var esc=function(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
+var pad=function(n){return String(n).padStart(2,'0')};
+var ymd=function(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+var today=function(){return ymd(new Date())};
+var mkey=function(s){return s.slice(0,7)};
+var dim=function(y,m){return new Date(y,m,0).getDate()};
+var nf0=new Intl.NumberFormat('en-US',{maximumFractionDigits:0});
+var nf2=new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+var sum=function(a){return a.reduce(function(t,e){return t+e.amount},0)};
+var num=function(v,dec){var r=dec?nf2.format(Math.abs(v)):nf0.format(Math.abs(Math.round(v)));return (v<0&&Number(r.replace(/,/g,''))!==0?'−':'')+r};
+
+var S={mode:'init',loaded:false,settings:{salary:0,goal:0,currency:'QAR',configured:false},months:{},tab:'today',view:mkey(today()),type:'expense',cat:'Food',lang:'en'};
+
+/* ---------- language helpers ---------- */
+function t(k){var d=DICT[S.lang];return (d&&d[k]!==undefined)?d[k]:(DICT.en[k]!==undefined?DICT.en[k]:k)}
+function tf(k,m){return esc(t(k)).replace(/\{(\w+)\}/g,function(x,n){return '<bdi dir="ltr">'+esc(m[n]===undefined?'':m[n])+'</bdi>'})}
+function catName(c){var k='cat.'+c;return DICT[S.lang][k]!==undefined?DICT[S.lang][k]:(DICT.en[k]!==undefined?DICT.en[k]:c)}
+function fmtDate(iso,opts){
+  var d=new Date(iso.length===7?iso+'-01T00:00:00':iso+'T00:00:00');
+  try{return d.toLocaleDateString(LOC[S.lang]+'-u-ca-gregory-nu-latn',opts)}
+  catch(e){return d.toLocaleDateString('en-GB',opts)}
+}
+function detectLang(){
+  try{var s=localStorage.getItem(LSL);if(s&&DICT[s])return s}catch(e){}
+  var n=String(navigator.language||'en').slice(0,2).toLowerCase();
+  return DICT[n]?n:'en';
+}
+function applyStatic(){
+  var root=document.documentElement;
+  root.lang=S.lang;root.dir=S.lang==='ar'?'rtl':'ltr';
+  document.querySelectorAll('[data-i]').forEach(function(el){el.textContent=t(el.dataset.i)});
+  document.querySelectorAll('[data-ip]').forEach(function(el){el.placeholder=t(el.dataset.ip)});
+  document.querySelectorAll('[data-ia]').forEach(function(el){el.setAttribute('aria-label',t(el.dataset.ia))});
+  $('#lang').value=S.lang;
+  buildChips();
+}
+
+var CUR=function(d){return d.settings.currency};
+var money=function(d,v,dec){return '<bdi dir="ltr">'+esc(CUR(d))+' '+num(v,dec)+'</bdi>'};
+
+/* ---------- example data, shown until real settings exist ---------- */
+var demoCache=null;
+function demoData(){
+  var tt=today();
+  if(demoCache&&demoCache.t===tt) return demoCache.d;
+  var key=mkey(tt),dayNow=Number(tt.slice(8)),list=[],i=0;
+  function add(day,type,amount,category,note){list.push({id:'x'+(i++),type:type,amount:amount,category:category,note:note,date:key+'-'+pad(day)})}
+  add(1,'expense',2200,'Room rent','');
+  if(dayNow>=3) add(3,'expense',200,'WiFi','');
+  if(dayNow>=3) add(3,'expense',150,'Bills','');
+  if(dayNow>=5) add(5,'expense',800,'Family','');
+  for(var d=1;d<=dayNow;d++){
+    add(d,'expense',18+((d*37)%23),'Food','');
+    if(d%3!==0) add(d,'expense',8+((d*11)%14),'Transport','');
+    if(d%4===0) add(d,'expense',40+((d*13)%35),'Food','');
+  }
+  var months={};months[key]=list;
+  var d0={settings:{salary:6500,goal:1500,currency:'QAR',configured:true},months:months};
+  demoCache={t:tt,d:d0};
+  return d0;
+}
+function data(){
+  var demo=!S.settings.configured;
+  return {demo:demo,d:demo?demoData():{settings:S.settings,months:S.months}};
+}
+
+/* ---------- the maths ---------- */
+function calc(d,key){
+  var p=key.split('-').map(Number),y=p[0],m=p[1],n=dim(y,m);
+  var list=d.months[key]||[],td=today(),tk=mkey(td);
+  var cur=key===tk,past=key<tk;
+  var dayNow=cur?Number(td.slice(8)):(past?n:0);
+  var exp=list.filter(function(e){return e.type==='expense'});
+  var inc=list.filter(function(e){return e.type==='income'});
+  var spent=sum(exp),extra=sum(inc),salary=d.settings.salary,goal=d.settings.goal;
+  var income=salary+extra,saved=income-spent;
+  var daysLeft=cur?n-dayNow+1:(past?0:n);
+  var spentToday=cur?sum(exp.filter(function(e){return e.date===td})):0;
+  var allowance=cur?(income-goal-(spent-spentToday))/daysLeft:null;
+  var remaining=cur?allowance-spentToday:null;
+  var tomorrow=(cur&&daysLeft>1)?(income-goal-spent)/(daysLeft-1):null;
+  var avg=dayNow?spent/dayNow:0;
+  var byDay=[];for(var i=0;i<n;i++)byDay.push(0);
+  var byCat={};
+  exp.forEach(function(e){
+    var day=Number(e.date.slice(8));
+    if(day>=1&&day<=n)byDay[day-1]+=e.amount;
+    byCat[e.category]=(byCat[e.category]||0)+e.amount;
+  });
+  return {n:n,key:key,cur:cur,past:past,dayNow:dayNow,list:list,spent:spent,extra:extra,salary:salary,goal:goal,income:income,saved:saved,
+    daysLeft:daysLeft,spentToday:spentToday,allowance:allowance,remaining:remaining,tomorrow:tomorrow,avg:avg,
+    projSaved:cur&&dayNow?income-avg*n:null,byDay:byDay,byCat:byCat,exp:exp};
+}
+
+/* ---------- rendering ---------- */
+function entryRow(d,e,del){
+  var inc=e.type==='income';
+  return '<li class="'+(del?'':'nodel')+'"><span class="cat">'+esc(inc?catName('Income'):catName(e.category))+'</span><span class="note" dir="auto">'+esc(e.note||'')+'</span>'+
+    '<span class="amt'+(inc?' pos':'')+'">'+(inc?'+':'−')+num(e.amount,true)+'</span>'+
+    (del?'<button type="button" class="del" data-del="'+esc(e.id)+'" aria-label="'+esc(t('delEntry'))+'">×</button>':'')+'</li>';
+}
+function renderToday(){
+  var o=data(),d=o.d,c=calc(d,mkey(today())),cur=CUR(d);
+  var over=c.remaining<0,pct=c.allowance>0?Math.min(100,c.spentToday/c.allowance*100):100;
+  var sub;
+  if(c.allowance<=0){sub=esc(t('subGoal'))}
+  else{
+    sub=tf('subSpent',{a:num(c.spentToday,true),b:num(c.allowance,true)});
+    if(c.tomorrow!==null)sub+=tf('subTomorrow',{a:num(c.tomorrow,true)});
+  }
+  $('#hero').innerHTML='<section class="hero'+(over?' over':'')+'"><p class="eyebrow">'+esc(over?t('overToday'):t('leftToday'))+'</p>'+
+    '<p class="big"><span class="cur">'+esc(cur)+'</span>'+num(over?-c.remaining:c.remaining)+'</p>'+
+    '<div class="meter"><i style="width:'+pct.toFixed(1)+'%"></i></div><p class="sub">'+sub+'</p></section>';
+  $('#trio').innerHTML='<div><dt>'+esc(t('spentMonth'))+'</dt><dd>'+num(c.spent)+'</dd></div>'+
+    '<div><dt>'+esc(t('savedSoFar'))+'</dt><dd>'+num(c.saved)+'</dd></div>'+
+    '<div><dt>'+esc(t('dayOfSalary'))+'</dt><dd>'+num(c.salary/c.n)+'</dd></div>';
+  $('#curTag').textContent=cur;
+  var td=today(),items=c.list.filter(function(e){return e.date===td}).reverse();
+  $('#todayTotal').innerHTML=items.length?tf('spentTot',{a:cur+' '+num(c.spentToday,true)}):'';
+  $('#todayList').innerHTML=items.length
+    ?'<ul class="list">'+items.map(function(e){return entryRow(d,e,!o.demo)}).join('')+'</ul>'
+    :'<p class="empty">'+esc(t('emptyToday'))+'</p>';
+}
+function dailyChart(c,d){
+  var base=(c.income-c.goal)/c.n;
+  var max=Math.max.apply(null,c.byDay.concat([base>0?base:0,1]))*1.1;
+  var cols='';
+  for(var i=1;i<=c.n;i++){
+    var v=c.byDay[i-1],h=v/max*100;
+    var isOver=base>0&&v>base+0.005,isToday=c.cur&&i===c.dayNow;
+    cols+='<div class="col'+(v===0?' empty':'')+(isOver?' over':'')+(isToday?' today':'')+'" title="'+i+': '+num(v,true)+'"><i style="height:'+h.toFixed(1)+'%"></i>'+((i===1||i%5===0)?'<b>'+i+'</b>':'')+'</div>';
+  }
+  var line=base>0?'<div class="limit" style="bottom:'+(base/max*100).toFixed(1)+'%"><span>'+num(base)+'</span></div>':'';
+  return '<div class="plot" role="img" aria-label="'+esc(t('chartAria'))+'">'+cols+line+'</div>';
+}
+function renderMonth(){
+  var o=data(),d=o.d,key=S.view,c=calc(d,key),tk=mkey(today());
+  var label=fmtDate(key,{month:'long',year:'numeric'});
+  $('#monthNav').innerHTML='<button type="button" data-nav="-1" aria-label="'+esc(t('prevMonth'))+'">‹</button><h2>'+esc(label)+'</h2><button type="button" data-nav="1" aria-label="'+esc(t('nextMonth'))+'"'+(key>=tk?' disabled':'')+'>›</button>';
+
+  var rate=c.income>0?Math.round(c.saved/c.income*100):0;
+  var goalTxt,goalCls='';
+  if(c.goal<=0){goalTxt=esc(t('notSet'))}
+  else if(c.saved>=c.goal){goalTxt=esc(t(c.cur?'metSoFar':'met'));goalCls='good'}
+  else{goalTxt=tf('toGo',{a:num(c.goal-c.saved)});goalCls=c.past?'bad':''}
+  var sent=SENT.reduce(function(tt,k){return tt+(c.byCat[k]||0)},0);
+  var rows=[
+    [esc(t('salary')),money(d,c.salary)],
+    [esc(t('otherIncome')),money(d,c.extra)],
+    [esc(t('spent')),money(d,c.spent,true)],
+    [esc(t('sent')),money(d,sent,true)],
+    [esc(t('saved')),money(d,c.saved)+' <bdi dir="ltr">('+rate+'%)</bdi>',c.saved>=0?'good':'bad'],
+    [tf('goal',{a:num(c.goal)}),goalTxt,goalCls],
+    [esc(t('avg')),money(d,c.avg,true)],
+    [esc(t('dayOfSalary')),money(d,c.salary/c.n,true)]
+  ];
+  if(c.projSaved!==null)rows.push([esc(t('proj')),money(d,c.projSaved),c.projSaved>=c.goal?'good':'bad']);
+  $('#ledger').innerHTML=rows.map(function(r){return '<div><dt>'+r[0]+'</dt><dd class="'+(r[2]||'')+'">'+r[1]+'</dd></div>'}).join('');
+
+  $('#dailyChart').innerHTML=dailyChart(c,d);
+
+  var cats=Object.keys(c.byCat).map(function(k){return [k,c.byCat[k]]}).sort(function(a,b){return b[1]-a[1]});
+  $('#catChart').innerHTML=cats.length
+    ?'<ul class="cats">'+cats.map(function(x){var share=c.spent?Math.round(x[1]/c.spent*100):0;
+      return '<li><div class="r"><span>'+esc(catName(x[0]))+'</span><span class="n"><bdi dir="ltr">'+num(x[1],true)+'</bdi><small>'+share+'%</small></span></div><div class="track"><i style="width:'+(x[1]/cats[0][1]*100).toFixed(1)+'%"></i></div></li>'}).join('')+'</ul>'
+    :'<p class="empty">'+esc(t('noSpend'))+'</p>';
+
+  var list=c.list.map(function(e,i){return {e:e,i:i}}).sort(function(a,b){return a.e.date<b.e.date?1:a.e.date>b.e.date?-1:b.i-a.i});
+  $('#entryCount').innerHTML=list.length?(list.length===1?esc(t('entry1')):tf('entryN',{n:list.length})):'';
+  var html='',last='';
+  list.forEach(function(x){
+    if(x.e.date!==last){
+      if(last)html+='</ul>';
+      last=x.e.date;
+      html+='<h4 class="dayh">'+esc(fmtDate(last,{weekday:'short',day:'numeric',month:'short'}))+'</h4><ul class="list">';
+    }
+    html+=entryRow(d,x.e,!o.demo);
+  });
+  if(last)html+='</ul>';
+  $('#monthList').innerHTML=html||'<p class="empty">'+esc(t('noEntries'))+'</p>';
+
+  var keys=Object.keys(d.months).filter(function(k){return d.months[k].length}).concat([tk]);
+  keys=keys.filter(function(k,i){return keys.indexOf(k)===i}).sort().reverse();
+  $('#history').innerHTML='<div class="scroll"><table><thead><tr><th>'+esc(t('month'))+'</th><th>'+esc(t('income'))+'</th><th>'+esc(t('spent'))+'</th><th>'+esc(t('saved'))+'</th></tr></thead><tbody>'+
+    keys.map(function(k){var m=calc(d,k);
+      return '<tr><td><button type="button" data-month="'+k+'">'+esc(fmtDate(k,{month:'short',year:'numeric'}))+'</button></td><td class="n">'+num(m.income)+'</td><td class="n">'+num(m.spent)+'</td><td class="n">'+num(m.saved)+'</td></tr>'}).join('')+
+    '</tbody></table></div>';
+}
+function render(){
+  var o=data();
+  $('#app').classList.toggle('loading',!S.loaded);
+  $('#banner').hidden=!(o.demo&&S.loaded);
+  $('#storePill').textContent=S.mode==='db'?t('synced'):(S.mode==='local'?t('local'):'');
+  renderToday();renderMonth();
+}
+
+/* ---------- saving ---------- */
+var toastT=null;
+function toast(msg){var el=$('#toast');el.textContent=msg;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(function(){el.hidden=true},2600)}
+var DB={prof:null},pending=0,chain=Promise.resolve(),deferred=null;
+function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({settings:S.settings,months:S.months}))}catch(e){}}
+function enqueue(fn){
+  pending++;
+  chain=chain.then(fn).catch(function(){toast(t('saveFail'))}).then(function(){
+    pending--;
+    if(!pending&&deferred){var f=deferred;deferred=null;f()}
+  });
+}
+function persistMonth(k){
+  if(S.mode==='db'){
+    var copy=JSON.parse(JSON.stringify(S.months[k]||[]));
+    enqueue(function(){return DB.prof.collection('months').doc(k).set({entries:copy})});
+  }else saveLocal();
+}
+function persistSettings(){
+  if(S.mode==='db'){
+    var s={salary:S.settings.salary,goal:S.settings.goal,currency:S.settings.currency};
+    enqueue(function(){return DB.prof.set(s)});
+  }else saveLocal();
+}
+function normSettings(o){
+  var cur=CURS.indexOf(o.currency)>=0?o.currency:'QAR';
+  return {salary:Math.max(0,Number(o.salary)||0),goal:Math.max(0,Number(o.goal)||0),currency:cur,configured:true};
+}
+function validEntry(e){return e&&typeof e.amount==='number'&&typeof e.date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(e.date)&&(e.type==='expense'||e.type==='income')}
+function fillSettings(force){
+  var a=document.activeElement&&document.activeElement.id;
+  if(!force&&(a==='salary'||a==='goal'||a==='cur'))return;
+  var s=S.settings;
+  $('#salary').value=s.configured?s.salary:'';
+  $('#goal').value=s.configured?s.goal:'';
+  $('#cur').value=s.currency;
+}
+
+function startLocal(){
+  S.mode='local';
+  try{
+    var j=JSON.parse(localStorage.getItem(LS)||'null');
+    if(j&&j.settings&&j.settings.salary!==undefined)S.settings=normSettings(j.settings);
+    if(j&&j.months){Object.keys(j.months).forEach(function(k){
+      if(Array.isArray(j.months[k]))S.months[k]=j.months[k].filter(validEntry)})}
+  }catch(e){}
+  S.loaded=true;fillSettings(true);render();
+}
+function startDb(db,uid){
+  S.mode='db';
+  var prof=db.doc('data/users/'+uid+'/profile');DB.prof=prof;
+  var gotS=false,gotM=false;
+  function ready(){if(gotS&&gotM&&!S.loaded){S.loaded=true}render()}
+  prof.onSnapshot(function(snap){
+    var apply=function(){
+      if(snap.exists){S.settings=normSettings(snap.data()||{})}
+      gotS=true;fillSettings(false);ready();
+    };
+    if(pending)deferred=apply;else apply();
+  },function(){toast(t('loadSettingsFail'));S.loaded=true;render()});
+  prof.collection('months').onSnapshot(function(q){
+    var apply=function(){
+      var m={};
+      q.docs.forEach(function(doc){var en=(doc.data()||{}).entries;m[doc.id]=Array.isArray(en)?en.filter(validEntry):[]});
+      S.months=m;gotM=true;ready();
+    };
+    if(pending)deferred=apply;else apply();
+  },function(){toast(t('loadEntriesFail'));S.loaded=true;render()});
+  setTimeout(function(){if(!S.loaded){S.loaded=true;render()}},6000);
+}
+function withTimeout(p,ms){return Promise.race([p,new Promise(function(r){setTimeout(function(){r(null)},ms)})])}
+async function init(){
+  var db=null,uid=null;
+  try{
+    var c=window.claude;
+    if(c&&c.use){
+      var r=await Promise.all([withTimeout(c.use('db'),4000),withTimeout(c.use('user'),4000)]);
+      if(r[0]&&r[1]){uid=await withTimeout(r[1].id(),3000);if(uid)db=r[0]}
+    }
+  }catch(e){}
+  if(db)startDb(db,uid);else startLocal();
+}
+
+/* ---------- interaction ---------- */
+function setTab(n){
+  S.tab=n;
+  ['today','month','setup'].forEach(function(x){$('#p-'+x).hidden=x!==n});
+  document.querySelectorAll('[data-tab]').forEach(function(b){b.setAttribute('aria-selected',String(b.dataset.tab===n))});
+  window.scrollTo(0,0);
+}
+function buildChips(){
+  $('#chips').innerHTML=CATS.map(function(c){return '<button type="button" data-cat="'+esc(c)+'" aria-pressed="'+(c===S.cat)+'">'+esc(catName(c))+'</button>'}).join('');
+}
+function setType(ty){
+  S.type=ty;
+  document.querySelectorAll('[data-type]').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.type===ty))});
+  $('#catField').hidden=ty==='income';
+}
+function normDigits(s){
+  return String(s)
+    .replace(/[٠-٩]/g,function(c){return c.charCodeAt(0)-0x660})
+    .replace(/[۰-۹]/g,function(c){return c.charCodeAt(0)-0x6F0})
+    .replace(/[०-९]/g,function(c){return c.charCodeAt(0)-0x966})
+    .replace(/[০-৯]/g,function(c){return c.charCodeAt(0)-0x9E6})
+    .replace(/٫/g,'.').replace(/٬/g,',');
+}
+function parseAmt(v){
+  var s=normDigits(v).replace(/\s/g,'').replace(/,(?=\d{3}(\D|$))/g,'').replace(/,/g,'.').replace(/[^0-9.]/g,'');
+  var n=parseFloat(s);return isFinite(n)?n:NaN;
+}
+function newId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+
+document.addEventListener('click',function(ev){
+  var b=ev.target.closest('button');if(!b)return;
+  if(b.dataset.tab){setTab(b.dataset.tab);return}
+  if(b.dataset.goto){setTab(b.dataset.goto);return}
+  if(b.dataset.type){setType(b.dataset.type);return}
+  if(b.dataset.cat){S.cat=b.dataset.cat;buildChips();return}
+  if(b.dataset.nav){
+    var p=S.view.split('-').map(Number),dt=new Date(p[0],p[1]-1+Number(b.dataset.nav),1);
+    var k=ymd(dt).slice(0,7);if(k<=mkey(today())){S.view=k;renderMonth()}
+    return;
+  }
+  if(b.dataset.month){S.view=b.dataset.month;renderMonth();window.scrollTo(0,0);return}
+  if(b.dataset.del){
+    if(!b.classList.contains('armed')){
+      b.classList.add('armed');b.textContent=t('deleteQ');
+      setTimeout(function(){b.classList.remove('armed');b.textContent='×'},3000);
+      return;
+    }
+    var id=b.dataset.del;
+    Object.keys(S.months).forEach(function(k){
+      var before=S.months[k].length;
+      S.months[k]=S.months[k].filter(function(e){return e.id!==id});
+      if(S.months[k].length!==before)persistMonth(k);
+    });
+    render();toast(t('deleted'));
+  }
+});
+
+$('#lang').addEventListener('change',function(){
+  var v=$('#lang').value;if(!DICT[v])return;
+  S.lang=v;
+  try{localStorage.setItem(LSL,v)}catch(e){}
+  applyStatic();render();
+});
+
+$('#addForm').addEventListener('submit',function(ev){
+  ev.preventDefault();
+  if(S.mode==='init'||!S.loaded){toast(t('loading'));return}
+  if(!S.settings.configured){toast(t('setSalaryFirst'));setTab('setup');return}
+  var amount=parseAmt($('#amt').value);
+  if(!(amount>0)){toast(t('enterAmount'));$('#amt').focus();return}
+  var date=$('#dt').value||today();
+  var e={id:newId(),type:S.type,amount:Math.round(amount*100)/100,category:S.type==='income'?'Income':S.cat,note:$('#note').value.trim(),date:date};
+  var k=mkey(date);
+  (S.months[k]=S.months[k]||[]).push(e);
+  persistMonth(k);
+  $('#amt').value='';$('#note').value='';$('#amt').focus();
+  render();toast(S.type==='income'?t('incomeAdded'):t('expenseAdded'));
+});
+$('#setForm').addEventListener('submit',function(ev){
+  ev.preventDefault();
+  if(S.mode==='init'||!S.loaded){toast(t('loading'));return}
+  var salary=parseAmt($('#salary').value),goal=parseAmt($('#goal').value||'0');
+  if(!(salary>0)){toast(t('enterSalary'));$('#salary').focus();return}
+  if(!isFinite(goal)||goal<0){toast(t('goalZero'));$('#goal').focus();return}
+  if(goal>=salary){toast(t('goalLess'));$('#goal').focus();return}
+  S.settings={salary:salary,goal:goal,currency:$('#cur').value,configured:true};
+  persistSettings();render();toast(t('savedToast'));setTab('today');
+});
+
+/* ---------- start ---------- */
+$('#cur').innerHTML=CURS.map(function(c){return '<option>'+c+'</option>'}).join('');
+$('#dt').value=today();
+S.lang=detectLang();
+applyStatic();setType('expense');
+render();
+init();
+})();
+</script>
+
+</body></html>
